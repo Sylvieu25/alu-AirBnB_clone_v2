@@ -8,7 +8,7 @@ fi
 
 mkdir -p /data/web_static/releases/test /data/web_static/shared
 
-cat > /data/web_static/releases/test/index.html << 'EOF'
+cat > /data/web_static/releases/test/index.html << 'HTML'
 <html>
   <head>
   </head>
@@ -16,16 +16,16 @@ cat > /data/web_static/releases/test/index.html << 'EOF'
     Holberton School
   </body>
 </html>
-EOF
+HTML
 
 rm -f /data/web_static/current
 ln -s /data/web_static/releases/test /data/web_static/current
 
 chown -R ubuntu:ubuntu /data
 
-config=/etc/nginx/sites-available/default
+config=/etc/nginx/sites-enabled/default
 if ! grep -q 'hbnb_static' "$config"; then
-    sed -i '0,/^[[:space:]]*server_name .*;/s//&\n\n    location \/hbnb_static {\n        alias \/data\/web_static\/current\/;\n    }/' "$config"
+    sed -i --follow-symlinks '0,/^[[:space:]]*server_name .*;/s//&\n\n    location \/hbnb_static {\n        alias \/data\/web_static\/current\/;\n    }/' "$config"
 fi
 
 service nginx restart
