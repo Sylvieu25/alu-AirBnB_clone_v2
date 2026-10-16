@@ -4,6 +4,8 @@ import os
 from fabric.api import env, put, run, settings
 
 env.hosts = ['54.91.248.231', '100.27.23.115']
+env.skip_bad_hosts = True
+env.timeout = 10
 
 
 def do_deploy(archive_path):
