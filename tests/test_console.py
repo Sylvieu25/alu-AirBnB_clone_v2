@@ -228,6 +228,117 @@ class TestConsoleFileStorage(unittest.TestCase):
                          'John')
 
 
+@unittest.skipIf(os.getenv('HBNB_TYPE_STORAGE') == 'db',
+                 'FileStorage only')
+class TestConsoleCreateParams(unittest.TestCase):
+    """Parsing of create <Class> <key>=<value> parameters."""
+
+    @classmethod
+    def tearDownClass(cls):
+        """Remove the JSON file written by the tests."""
+        try:
+            os.remove('file.json')
+        except OSError:
+            pass
+
+    def _create(self, line):
+        """Run create with the given arguments and return the instance."""
+        obj_id = run_cmd('create ' + line)
+        cls_name = line.split()[0]
+        return storage.all()[cls_name + '.' + obj_id]
+
+    def test_no_params(self):
+        """create without parameters still creates the instance."""
+        obj = self._create('State')
+        self.assertNotIn('name', obj.__dict__)
+
+    def test_string(self):
+        """A quoted value is stored as a string."""
+        obj = self._create('State name="California"')
+        self.assertEqual(obj.name, 'California')
+
+    def test_string_underscores(self):
+        """Underscores in a string become spaces."""
+        obj = self._create('Place name="My_little_house"')
+        self.assertEqual(obj.name, 'My little house')
+
+    def test_string_escaped_quote(self):
+        """An escaped double quote is kept in the string."""
+        obj = self._create('State name="Cali\\"fornia"')
+        self.assertEqual(obj.name, 'Cali"fornia')
+
+    def test_int(self):
+        """A value without a dot is stored as an int."""
+        obj = self._create('Place number_rooms=4')
+        self.assertEqual(obj.number_rooms, 4)
+        self.assertIsInstance(obj.number_rooms, int)
+
+    def test_negative_int(self):
+        """A negative int is parsed."""
+        obj = self._create('Place max_guest=-3')
+        self.assertEqual(obj.max_guest, -3)
+
+    def test_float(self):
+        """A value with a dot is stored as a float."""
+        obj = self._create('Place latitude=37.773972')
+        self.assertEqual(obj.latitude, 37.773972)
+        self.assertIsInstance(obj.latitude, float)
+
+    def test_negative_float(self):
+        """A negative float is parsed."""
+        obj = self._create('Place longitude=-122.431297')
+        self.assertEqual(obj.longitude, -122.431297)
+
+    def test_multiple_params(self):
+        """Several parameters of mixed types are all set."""
+        obj = self._create('Place city_id="0001" user_id="0001" '
+                           'name="My_little_house" number_rooms=4 '
+                           'number_bathrooms=2 max_guest=10 '
+                           'price_by_night=300 latitude=37.773972 '
+                           'longitude=-122.431297')
+        self.assertEqual(obj.city_id, '0001')
+        self.assertEqual(obj.name, 'My little house')
+        self.assertEqual(obj.number_bathrooms, 2)
+        self.assertEqual(obj.price_by_night, 300)
+        self.assertEqual(obj.longitude, -122.431297)
+
+    def test_skip_unquoted_string(self):
+        """An unquoted non-numeric value is skipped."""
+        obj = self._create('State name=California')
+        self.assertNotIn('name', obj.__dict__)
+
+    def test_skip_missing_equal(self):
+        """A parameter without '=' is skipped."""
+        obj = self._create('State name')
+        self.assertNotIn('name', obj.__dict__)
+
+    def test_skip_bad_key(self):
+        """A parameter with an invalid key is skipped."""
+        obj = self._create('State ="California"')
+        self.assertNotIn('', obj.__dict__)
+
+    def test_skip_bad_float(self):
+        """A value with more than one dot is skipped."""
+        obj = self._create('Place latitude=1.2.3')
+        self.assertNotIn('latitude', obj.__dict__)
+
+    def test_skip_unescaped_quote(self):
+        """A string with an unescaped inner quote is skipped."""
+        obj = self._create('State name="Cal"ifornia"')
+        self.assertNotIn('name', obj.__dict__)
+
+    def test_skip_unclosed_quote(self):
+        """A string without a closing quote is skipped."""
+        obj = self._create('State name="California')
+        self.assertNotIn('name', obj.__dict__)
+
+    def test_valid_kept_when_other_skipped(self):
+        """A bad parameter does not block the valid ones."""
+        obj = self._create('Place name="Texas" bogus max_guest=2')
+        self.assertEqual(obj.name, 'Texas')
+        self.assertEqual(obj.max_guest, 2)
+
+
 @unittest.skipIf(os.getenv('HBNB_TYPE_STORAGE') != 'db',
                  'DBStorage only')
 class TestConsoleDBStorage(unittest.TestCase):

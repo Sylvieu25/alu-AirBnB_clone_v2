@@ -113,23 +113,61 @@ class HBNBCommand(cmd.Cmd):
         """ Overrides the emptyline method of CMD """
         pass
 
+    @staticmethod
+    def _parse_value(raw):
+        """Convert a raw parameter value to a str, float or int.
+
+        Strings start and end with a double quote, inner double quotes
+        must be escaped with a backslash, and underscores become spaces.
+        Floats contain a dot. Anything else is read as an int.
+        Returns None when the value matches none of these, so the
+        caller can skip the parameter.
+        """
+        if raw.startswith('"'):
+            if len(raw) < 2 or not raw.endswith('"'):
+                return None
+            inner = raw[1:-1]
+            if inner.endswith('\\'):
+                return None
+            for i, char in enumerate(inner):
+                if char == '"' and (i == 0 or inner[i - 1] != '\\'):
+                    return None
+            return inner.replace('\\"', '"').replace('_', ' ')
+        try:
+            if '.' in raw:
+                return float(raw)
+            return int(raw)
+        except ValueError:
+            return None
+
     def do_create(self, args):
-        """ Create an object of any class"""
-        if not args:
+        """Create an object of any class, with optional parameters.
+
+        Usage: create <Class name> <key>=<value> <key>=<value> ...
+        Parameters that cannot be parsed are skipped.
+        """
+        tokens = args.split()
+        if not tokens:
             print("** class name missing **")
             return
-        elif args not in HBNBCommand.classes:
+        if tokens[0] not in HBNBCommand.classes:
             print("** class doesn't exist **")
             return
-        new_instance = HBNBCommand.classes[args]()
+        new_instance = HBNBCommand.classes[tokens[0]]()
+        for param in tokens[1:]:
+            key, sep, raw_value = param.partition('=')
+            if not sep or not key.isidentifier():
+                continue
+            value = self._parse_value(raw_value)
+            if value is not None:
+                setattr(new_instance, key, value)
         storage.save()
         print(new_instance.id)
-        storage.save()
 
     def help_create(self):
         """ Help information for the create method """
-        print("Creates a class of any type")
-        print("[Usage]: create <className>\n")
+        print("Creates a class of any type, with optional parameters")
+        print("[Usage]: create <className> <key>=<value> ...\n")
 
     def do_show(self, args):
         """ Method to show an individual object """
